@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# SQLite Database & Uploads
+*.db
+pit_track.db
+uploads/raw_*
+uploads/video_*
+uploads/temp_*
+uploads/annotated/annotated_*
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment Variables
+.env
+.env.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

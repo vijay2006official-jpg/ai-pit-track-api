@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Pit Track | Real-Time Road Defect & Pothole Monitoring</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <link rel="stylesheet" href="/dashboard/style.css" />
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+
+  <!-- Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="p-2.5 bg-gradient-to-tr from-amber-500 to-red-600 rounded-xl shadow-lg shadow-amber-500/20">
+        <i data-lucide="scan-line" class="w-6 h-6 text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          AI Pit Track <span class="text-xs uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">Live Realtime Vision</span>
+        </h1>
+        <p class="text-xs text-slate-400">Automated Road Pit, Pothole & Defect Vision Engine</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-3">
+      <div id="connection-status-pill" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Realtime WebSocket Ready
+      </div>
+      <a href="/docs" target="_blank" class="px-4 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors border border-slate-700 flex items-center gap-1.5 shadow-sm">
+        <i data-lucide="book-open" class="w-4 h-4 text-amber-400"></i> Docs
+      </a>
+      <a href="/api/v1/reports/export/csv" class="px-4 py-2 text-sm font-medium bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-amber-500/20">
+        <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-6 space-y-6">
+
+    <!-- KPI Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-sm font-medium">Road Health Index</span>
+          <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
+        </div>
+        <div class="flex items-baseline space-x-2">
+          <span id="stat-health-index" class="text-3xl font-extrabold text-white">--</span>
+          <span class="text-xs text-slate-400">/ 100</span>
+        </div>
+        <p class="text-xs text-emerald-400 mt-2 flex items-center gap-1">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Network Safety Score
+        </p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-sm font-medium">Active Road Pits</span>
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400"></i>
+        </div>
+        <span id="stat-active-pits" class="text-3xl font-extrabold text-white">--</span>
+        <p class="text-xs text-amber-400 mt-2 flex items-center gap-1">
+          <i data-lucide="clock" class="w-3.5 h-3.5"></i> Awaiting repair
+        </p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-sm font-medium">Critical Defect Pits</span>
+          <i data-lucide="flame" class="w-5 h-5 text-red-400"></i>
+        </div>
+        <span id="stat-critical-pits" class="text-3xl font-extrabold text-white">--</span>
+        <p class="text-xs text-red-400 mt-2 flex items-center gap-1">
+          <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> High hazard level
+        </p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-sm font-medium">Repaired Pits</span>
+          <i data-lucide="check-circle-2" class="w-5 h-5 text-cyan-400"></i>
+        </div>
+        <span id="stat-repaired-pits" class="text-3xl font-extrabold text-white">--</span>
+        <p class="text-xs text-cyan-400 mt-2 flex items-center gap-1">
+          <i data-lucide="wrench" class="w-3.5 h-3.5"></i> Resolved by crews
+        </p>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Panel: Live Camera & Video Inference -->
+      <div class="lg:col-span-6 space-y-6">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-sm">
+          
+          <!-- Mode Tabs -->
+          <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+            <div class="flex space-x-2">
+              <button id="tab-btn-live" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-red-600 text-white transition-all flex items-center gap-1.5 shadow-md shadow-red-500/20">
+                <i data-lucide="video" class="w-3.5 h-3.5"></i> Live Camera / Dashcam
+              </button>
+              <button id="tab-btn-photo" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+                <i data-lucide="image" class="w-3.5 h-3.5"></i> Photo Upload
+              </button>
+            </div>
+            <div class="flex items-center gap-2 text-[11px] text-slate-400">
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" id="chk-audio-alert" checked class="rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0" />
+                <i data-lucide="volume-2" class="w-3.5 h-3.5 text-amber-400"></i> Audio Alert
+              </label>
+            </div>
+          </div>
+
+          <!-- TAB 1: Live Realtime Video & Camera Stream -->
+          <div id="tab-content-live" class="space-y-4">
+            
+            <!-- Video & Canvas Viewport -->
+            <div class="relative rounded-2xl overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-inner">
+              <video id="live-video" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+              <canvas id="live-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+              
+              <!-- Inactive Placeholder -->
+              <div id="live-placeholder" class="text-center p-6 space-y-3">
+                <div class="p-3 bg-slate-900 rounded-full inline-block border border-slate-800">
+                  <i data-lucide="camera" class="w-8 h-8 text-amber-400 mx-auto"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-slate-200">Camera is Ready</p>
+                  <p class="text-xs text-slate-400 max-w-xs mx-auto mt-1">Click the button below to turn on your Laptop Webcam, Mobile Camera, or USB Dashcam.</p>
+                </div>
+              </div>
+
+              <!-- Realtime HUD Telemetry Badge -->
+              <div id="live-stats-overlay" class="hidden absolute top-3 left-3 bg-slate-950/85 backdrop-blur border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-300 flex items-center gap-3 shadow-lg">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>FPS: <b id="live-fps-val" class="text-amber-400">0</b></span>
+                </div>
+                <span>Latency: <b id="live-latency-val" class="text-emerald-400">0ms</b></span>
+                <span>Pits: <b id="live-pits-val" class="text-red-400">0</b></span>
+              </div>
+
+              <!-- Live Threat Banner -->
+              <div id="threat-alert-banner" class="hidden absolute bottom-3 left-3 right-3 bg-red-600/90 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center justify-between animate-bounce">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="alert-octagon" class="w-4 h-4"></i>
+                  <span id="threat-alert-text">POTHOLE DETECTED AHEAD</span>
+                </div>
+                <span class="text-[10px] uppercase bg-black/40 px-2 py-0.5 rounded">Hazard</span>
+              </div>
+            </div>
+
+            <!-- Controls & Options -->
+            <div class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <label class="block text-slate-400 mb-1">Camera Device</label>
+                  <select id="camera-device-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-amber-500">
+                    <option value="environment">Back / Road Facing Camera</option>
+                    <option value="user">Front / Webcam</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-400 mb-1">Live GPS Tracking</label>
+                  <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span id="live-gps-coords">Searching GPS...</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex flex-wrap gap-2">
+                <button id="btn-toggle-camera" class="flex-1 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-red-500/20 flex items-center justify-center gap-2 text-sm">
+                  <i data-lucide="camera" class="w-4 h-4"></i> Turn On Live Camera
+                </button>
+                <button id="btn-play-simulated-video" class="px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 rounded-xl transition-colors border border-slate-700 flex items-center gap-1.5 text-xs">
+                  <i data-lucide="film" class="w-4 h-4 text-amber-400"></i> Play Demo Video
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 2: Photo Upload Mode -->
+          <div id="tab-content-photo" class="hidden space-y-4">
+            <form id="detect-form" class="space-y-4">
+              <!-- Upload Dropzone -->
+              <input type="file" id="image-input" accept="image/png, image/jpeg, image/jpg, image/webp" class="hidden" />
+              <div id="dropzone" class="border-2 border-dashed border-slate-700 hover:border-amber-500 rounded-2xl p-6 text-center cursor-pointer transition-all bg-slate-950/60 group">
+                <div id="dropzone-prompt" class="space-y-3">
+                  <div class="p-3 bg-slate-900 rounded-full inline-block border border-slate-800 group-hover:border-amber-500/40 transition-colors">
+                    <i data-lucide="upload-cloud" class="w-8 h-8 text-amber-400 mx-auto"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-slate-200">Click or Drag & Drop Road Image</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Supports JPG, PNG, WebP</p>
+                  </div>
+                  <div class="inline-block px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-lg border border-slate-700">
+                    📁 Browse File
+                  </div>
+                </div>
+                
+                <div id="preview-container" class="hidden space-y-2">
+                  <img id="image-preview" class="max-h-52 mx-auto rounded-xl object-contain shadow-lg border border-slate-800" />
+                  <p id="file-name-label" class="text-xs text-amber-400 font-mono"></p>
+                  <button type="button" id="btn-clear-image" class="text-[11px] text-red-400 hover:underline">✕ Remove & Choose Another</button>
+                </div>
+              </div>
+
+              <!-- GPS Inputs -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Latitude</label>
+                  <input type="number" step="any" id="input-lat" placeholder="e.g. 37.7749" value="37.7749" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Longitude</label>
+                  <input type="number" step="any" id="input-lon" placeholder="e.g. -122.4194" value="-122.4194" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <button type="button" id="btn-use-location" class="hover:text-amber-400 flex items-center gap-1 transition-colors">
+                  <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> Use Device GPS
+                </button>
+                <button type="button" id="btn-sample-pit" class="hover:text-amber-400 flex items-center gap-1 transition-colors">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Load Test Pothole
+                </button>
+              </div>
+
+              <button type="submit" id="btn-detect" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold py-2.5 rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-2">
+                <i data-lucide="play" class="w-4 h-4"></i> Run AI Pit Detection
+              </button>
+            </form>
+
+            <!-- Result Card -->
+            <div id="detection-result" class="hidden mt-6 pt-5 border-t border-slate-800 space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-200">Detection Result</h3>
+                <span id="result-badge" class="text-xs px-2 py-0.5 rounded font-bold"></span>
+              </div>
+
+              <div class="relative rounded-xl overflow-hidden border border-slate-800 bg-black">
+                <img id="result-image" class="w-full object-contain max-h-64" />
+              </div>
+
+              <div id="detection-details" class="text-xs space-y-2 text-slate-300"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right Panel: Geospatial Road Map & Active Pits Table -->
+      <div class="lg:col-span-6 space-y-6">
+        <!-- Interactive Map -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <i data-lucide="map-pin" class="w-5 h-5 text-amber-400"></i> Live Geospatial Defect Map
+            </h2>
+            <button id="btn-refresh-map" class="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Refresh Map
+            </button>
+          </div>
+          <div id="map" class="w-full h-80 rounded-xl border border-slate-800 z-10"></div>
+        </div>
+
+        <!-- Registered Pits List -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <i data-lucide="list-ordered" class="w-5 h-5 text-amber-400"></i> Tracked Road Pits & Defects
+            </h2>
+            <div class="flex items-center gap-2">
+              <select id="filter-severity" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 focus:outline-none">
+                <option value="">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="text-slate-400 uppercase bg-slate-950/60 border-b border-slate-800">
+                <tr>
+                  <th class="px-3 py-2.5">ID</th>
+                  <th class="px-3 py-2.5">Coordinates</th>
+                  <th class="px-3 py-2.5">Severity</th>
+                  <th class="px-3 py-2.5">Status</th>
+                  <th class="px-3 py-2.5">Detections</th>
+                  <th class="px-3 py-2.5">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="pits-table-body" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="6" class="text-center py-6 text-slate-500">Loading pits...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script src="/dashboard/app.js"></script>
+</body>
+</html>

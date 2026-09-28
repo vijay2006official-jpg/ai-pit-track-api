@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  ai-pit-track-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai_pit_track_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PROJECT_NAME=AI Pit Track API
+      - DATABASE_URL=sqlite:////app/pit_track.db
+      - GEO_DUPLICATION_RADIUS_METERS=7.0
+      - DEFAULT_CONFIDENCE_THRESHOLD=0.35
+      - ALERT_WEBHOOK_URL=
+    volumes:
+      - ./uploads:/app/uploads
+      - ./models_weights:/app/models_weights
+      - ./pit_track.db:/app/pit_track.db
